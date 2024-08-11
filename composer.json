@@ -1,0 +1,27 @@
+{
+    "name": "tenchology/translates",
+    "description": "",
+    "type": "library",
+    "version": "1.0",
+    "license": "proprietary",
+    "require": {
+        "filament/filament": "^3.0.0",
+        "stichoza/google-translate-php": "^5.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Tenchology\\Translate\\": "src/"
+        },
+        "files": [
+            "src/helpers.php"
+        ]
+    },
+    "minimum-stability": "dev",
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Tenchology\\Translate\\Providers\\TranslateServiceProvider"
+            ]
+        }
+    }
+}
