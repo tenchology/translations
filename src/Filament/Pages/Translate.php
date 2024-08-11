@@ -4,7 +4,6 @@ namespace Tenchology\Translate\Filament\Pages;
 
 use Exception;
 use Filament\Actions\Action;
-use Filament\Actions\LocaleSwitcher;
 use Filament\Actions\SelectAction;
 use Filament\Forms\Components;
 use Filament\Forms\Components\Section;
@@ -19,8 +18,8 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
-use JetBrains\PhpStorm\NoReturn;
 use Stichoza\GoogleTranslate\GoogleTranslate;
+use Tenchology\Translate\Jobs\TranslateChunk;
 
 class Translate extends Page
 {
@@ -71,17 +70,18 @@ class Translate extends Page
 
     }
 
-
     public function form(Form $form): Form
     {
         $jsonString = [];
-        if(File::exists(base_path('lang/'.$this->activeLocale.'.json'))){
-            $jsonString = file_get_contents(base_path('lang/'.$this->activeLocale.'.json'));
-            $jsonString = collect(json_decode($jsonString, true));
-            $jsonString  = $jsonString->map(fn($value, $key) => TextInput::make($key)->default($value))
-                ->flatten()
-                ->toArray();
-//            $jsonString = $jsonString->flatten()->toArray();
+        $jsonString  = LangJsonFileValues($this->activeLocale)
+            ->map(fn($value, $key) => TextInput::make($key)->default($value))
+            ->flatten()
+            ->toArray();
+
+        if (empty($jsonString)) {
+            return $form->schema([
+                Components\Placeholder::make('No translations found')
+            ]);
         }
 
         return $form
@@ -100,13 +100,12 @@ class Translate extends Page
                     ])
                     ->columns(1),
                 Section::make(__('Translations Keys (Language: :language)', ['language' => $this->activeLocale]) )
-                    ->schema($jsonString ?? [])
+                    ->schema($jsonString)
                     ->columns(3),
 
             ])->statePath('data');
     }
 
-    #[NoReturn]
     public function submit(): void
     {
         $keys_array = Arr::mapWithKeys($this->form->getState()['keys'], function (array $item, int $key) {
@@ -115,10 +114,6 @@ class Translate extends Page
         $array_without_keys = Arr::except($this->form->getState(), ['keys']);
 
         $array_with_keys = array_merge($array_without_keys, $keys_array);
-//        dd($array_with_keys);
-
-
-
 
         try {
             $newJsonString = json_encode($array_with_keys, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
@@ -136,38 +131,17 @@ class Translate extends Page
 
     public function auto_translate(): void
     {
-
-        // todo:: queue auto translate to chunks
-        try {
-//            set_time_limit(16000);
-//            $translated = [];
-//            collect(Arr::except($this->form->getState(), ['keys']))->chunk(20)->each(function ($chunk) use (&$translated){
-//                $chunk->map(function ($value, $key) use (&$translated){
-//                    $translated[$key] = (new GoogleTranslate)->setTarget($this->activeLocale)->translate($value);
-//                    $this->form->fill($translated);
-//                });
-//            });
-//
-//            $values = Arr::except($this->form->getState(), ['keys']);
-
-            collect(valuesofCurrentLangJsonFile())->chunk(20)->each(function ($chunk){
-                dispatch(function () use ($chunk) {
-                    $chunk->map(function ($value, $key){
-                        $translated = (new GoogleTranslate)->setTarget($this->activeLocale)->translate($key);
-                        $values = valuesofCurrentLangJsonFile();
-                        $values[$key] = $translated;
-                        File::put(base_path('lang/'.$this->activeLocale.'.json'), json_encode($values, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
-                    });
-                });
+         try {
+            collect(LangJsonFileValues($this->activeLocale))->chunk(20)->each(function ($chunk) {
+                TranslateChunk::dispatch($chunk, $this->activeLocale);
             });
-        }catch (Exception $exception) {
+        } catch (Exception $exception) {
             Notification::make()->title($exception->getMessage())->danger()->send();
         }
 
-        Notification::make()->title('keys will be translated in background')->success()->send();
+        Notification::make()->title('keys will be translated in background, don\'t forget to run artisan queue:work ')->success()->send();
 
     }
-
 
 
 

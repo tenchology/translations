@@ -3,10 +3,13 @@
 
 use Illuminate\Support\Facades\File;
 
-if (! function_exists('valuesofCurrentLangJsonFile')) {
-    function valuesofCurrentLangJsonFile(): \Illuminate\Support\Collection
+if (! function_exists('LangJsonFileValues')) {
+    function LangJsonFileValues($lang): \Illuminate\Support\Collection
     {
-        $values = File::get(base_path('lang/'.app()->currentLocale().'.json'));
-        return collect(json_decode($values, true));
+        if(File::exists(base_path('lang/'.$lang.'.json'))) {
+            return collect(File::json(base_path('lang/'.$lang.'.json')));
+        }
+        return collect([]);
+
     }
 }
