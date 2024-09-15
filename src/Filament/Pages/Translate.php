@@ -2,6 +2,8 @@
 
 namespace Tenchology\Translate\Filament\Pages;
 
+use App\Models\Locale;
+use App\Settings\General;
 use Exception;
 use Filament\Actions\Action;
 use Filament\Actions\SelectAction;
@@ -50,8 +52,10 @@ class Translate extends Page
 
     protected function getHeaderActions(): array
     {
+        $languages = Locale::whereIn('code',config('app.languages'))->pluck('name', 'code')->toArray();
+
         return [
-            SelectAction::make('activeLocale')->options(config('app.locales'))->label(__('Language')),
+            SelectAction::make('activeLocale')->options($languages)->label(__('Language')),
             Action::make('auto_translate')->label('Auto Translate')->color('success')->icon('heroicon-o-language')->action('auto_translate'),
             Action::make('submit')->label(__('Save'))->color('success')->icon('heroicon-o-check')->action('submit'),
         ];

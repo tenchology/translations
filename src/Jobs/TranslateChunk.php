@@ -8,6 +8,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\File;
+use Log;
 use Stichoza\GoogleTranslate\GoogleTranslate;
 
 class TranslateChunk implements ShouldQueue
@@ -25,11 +26,16 @@ class TranslateChunk implements ShouldQueue
 
     public function handle()
     {
+        Log::info('TranslateChunk job started.');
+
         $this->chunk->map(function ($value, $key) {
             $translated = (new GoogleTranslate)->setTarget($this->activeLocale)->translate($key);
             $values = LangJsonFileValues($this->activeLocale);
             $values[$key] = $translated;
             File::put(base_path('lang/'.$this->activeLocale.'.json'), json_encode($values, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
         });
+
+        Log::info('TranslateChunk job completed.');
+
     }
 }
